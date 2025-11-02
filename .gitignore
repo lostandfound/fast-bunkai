@@ -208,3 +208,12 @@ __marimo__/
 
 # Misc local artifacts
 tmp/
+
+# Node.js / TypeScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+fast-bunkai-ts/dist/
+fast-bunkai-ts/build/
+fast-bunkai-ts/*.node

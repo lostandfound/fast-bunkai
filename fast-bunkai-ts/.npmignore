@@ -1,0 +1,28 @@
+# Source files
+src/
+tests/
+scripts/
+
+# Config files
+tsconfig.json
+vitest.config.ts
+*.config.*
+.gitignore
+
+# Build tools
+node_modules/
+.pnpm-store/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# CI
+.github/
+
+# Temporary
+tmp/
+temp/
+*.log
+
