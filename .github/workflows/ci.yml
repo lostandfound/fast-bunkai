@@ -91,8 +91,9 @@ jobs:
         shell: pwsh
         run: |
           $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+          $env:PYO3_NO_PYTHON = "1"
           cd ..
-          cargo build --features node --release
+          cargo build --features node --no-default-features --release
           cd fast-bunkai-ts
           if (Test-Path "../target/release/fast_bunkai_native.dll") {
             New-Item -ItemType Directory -Force -Path "build" | Out-Null

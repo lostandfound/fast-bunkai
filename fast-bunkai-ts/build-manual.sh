@@ -7,7 +7,9 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 echo "Building Rust library..."
 cd ..
-cargo build --features node --release
+# Disable Python feature to avoid pyo3-build-config dependency
+export PYO3_NO_PYTHON=1
+cargo build --features node --no-default-features --release
 
 echo "Detecting platform..."
 
