@@ -9,6 +9,7 @@ use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
+#[allow(dead_code)]
 const BASIC_RULE_RE: &str = "[。!?.！？．]+\\s*";
 const LINEBREAK_RE: &str = "[\\n\\s]*\\n[\\n\\s]*";
 
@@ -156,6 +157,7 @@ impl PipelineState {
 }
 
 struct PipelineOutput {
+    #[allow(dead_code)]
     layers: Vec<LayerOutput>,
     final_boundaries: Vec<usize>,
 }
