@@ -8,6 +8,7 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const CLI_PATH = join(__dirname, '../src/cli.ts');
+const BIN_PATH = join(__dirname, '../bin/fast-bunkai.mjs');
 
 describe('CLI', () => {
   const testInputFile = join(__dirname, 'test-input.txt');
@@ -35,9 +36,10 @@ describe('CLI', () => {
 
   it('should process stdin input', () => {
     const input = '文1。文2！';
-    const result = execSync(`echo "${input}" | node --loader ts-node/esm ${CLI_PATH}`, {
+    // Use the bin script instead of ts-node
+    const binPath = join(__dirname, '../bin/fast-bunkai.mjs');
+    const result = execSync(`echo "${input}" | node ${binPath}`, {
       encoding: 'utf-8',
-      env: { ...process.env, NODE_OPTIONS: '--loader ts-node/esm' },
     });
     expect(result).toContain('文1。');
     expect(result).toContain('文2！');
@@ -45,7 +47,8 @@ describe('CLI', () => {
 
   it('should process file input', () => {
     writeFileSync(testInputFile, '文1。文2！', 'utf-8');
-    const result = execSync(`node --loader ts-node/esm ${CLI_PATH} ${testInputFile}`, {
+    const binPath = join(__dirname, '../bin/fast-bunkai.mjs');
+    const result = execSync(`node ${binPath} ${testInputFile}`, {
       encoding: 'utf-8',
     });
     expect(result).toContain('文1。');
