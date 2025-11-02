@@ -78,12 +78,14 @@ struct SpanRecord {
     rule_name: &'static str,
     start: usize,
     end: usize,
+    #[allow(dead_code)]
     split_type: Option<&'static str>,
     split_value: Option<String>,
 }
 
 #[derive(Clone)]
 struct LayerOutput {
+    #[allow(dead_code)]
     name: &'static str,
     spans: Vec<SpanRecord>,
 }
@@ -850,14 +852,15 @@ use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 
 /// Convert Unicode character indices to UTF-16 code unit indices
-/// 
+///
 /// JavaScript uses UTF-16 code units for string indexing, so we need to convert
 /// the Unicode character indices (used internally) to UTF-16 indices for JS compatibility.
+#[allow(dead_code)]
 fn to_utf16_indices(unicode_indices: &[usize], text: &str) -> Vec<u32> {
     // Build a mapping from Unicode character index to UTF-16 code unit index
     let mut unicode_to_utf16: Vec<u32> = Vec::with_capacity(text.chars().count() + 1);
     let mut utf16_index = 0u32;
-    
+
     for ch in text.chars() {
         unicode_to_utf16.push(utf16_index);
         // Surrogate pairs take 2 UTF-16 code units, regular chars take 1
@@ -865,7 +868,7 @@ fn to_utf16_indices(unicode_indices: &[usize], text: &str) -> Vec<u32> {
     }
     // Add the final position (end of string)
     unicode_to_utf16.push(utf16_index);
-    
+
     // Convert Unicode indices to UTF-16 indices
     unicode_indices
         .iter()
@@ -909,14 +912,18 @@ struct SegmentResult {
 fn pipeline_output_to_node(output: PipelineOutput, text: &str) -> SegmentResult {
     // Convert final_boundaries (Unicode indices) to UTF-16 indices
     let eos_indices = to_utf16_indices(&output.final_boundaries, text);
-    
+
     // Extract sentences
     let mut sentences = Vec::new();
     let mut start = 0usize;
     for &end in &output.final_boundaries {
         if end <= text.chars().count() {
             let start_byte = text.char_indices().nth(start).map(|(i, _)| i).unwrap_or(0);
-            let end_byte = text.char_indices().nth(end).map(|(i, _)| i).unwrap_or(text.len());
+            let end_byte = text
+                .char_indices()
+                .nth(end)
+                .map(|(i, _)| i)
+                .unwrap_or(text.len());
             sentences.push(text[start_byte..end_byte].to_string());
             start = end;
         }
@@ -926,7 +933,7 @@ fn pipeline_output_to_node(output: PipelineOutput, text: &str) -> SegmentResult 
         let start_byte = text.char_indices().nth(start).map(|(i, _)| i).unwrap_or(0);
         sentences.push(text[start_byte..].to_string());
     }
-    
+
     // Convert layers with UTF-16 index conversion
     let layers: Vec<NodeLayer> = output
         .layers
@@ -939,7 +946,7 @@ fn pipeline_output_to_node(output: PipelineOutput, text: &str) -> SegmentResult 
                     // Convert span indices to UTF-16
                     let utf16_start = to_utf16_indices(&[span.start], text)[0];
                     let utf16_end = to_utf16_indices(&[span.end], text)[0];
-                    
+
                     NodeSpan {
                         rule_name: span.rule_name.to_string(),
                         start: utf16_start,
@@ -949,14 +956,14 @@ fn pipeline_output_to_node(output: PipelineOutput, text: &str) -> SegmentResult 
                     }
                 })
                 .collect();
-            
+
             NodeLayer {
                 name: layer.name.to_string(),
                 spans,
             }
         })
         .collect();
-    
+
     SegmentResult {
         sentences,
         eos_indices,
@@ -969,5 +976,6 @@ fn pipeline_output_to_node(output: PipelineOutput, text: &str) -> SegmentResult 
 pub fn segment(text: String) -> Result<String> {
     let output = segment_impl(&text);
     let result = pipeline_output_to_node(output, &text);
-    serde_json::to_string(&result).map_err(|e| Error::from_reason(format!("JSON serialization failed: {}", e)))
+    serde_json::to_string(&result)
+        .map_err(|e| Error::from_reason(format!("JSON serialization failed: {}", e)))
 }
