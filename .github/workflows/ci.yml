@@ -137,11 +137,31 @@ jobs:
         working-directory: fast-bunkai-ts
         run: npm ci
 
-      - name: Build native module
+      - name: Build native module (Windows)
+        shell: pwsh
         working-directory: fast-bunkai-ts
         run: |
           $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-          npm run build
+          # Windows用のビルド手順
+          cd ..
+          cargo build --features node --release
+          cd fast-bunkai-ts
+          if (Test-Path "../target/release/fast_bunkai_native.dll") {
+            New-Item -ItemType Directory -Force -Path "build" | Out-Null
+            Copy-Item "../target/release/fast_bunkai_native.dll" "build/fast-bunkai.win32-x64-msvc.node"
+            Write-Host "✓ Binary copied to build/fast-bunkai.win32-x64-msvc.node"
+          } else {
+            Write-Host "Error: No binary found"
+            exit 1
+          }
+          # TypeScript定義ファイルを生成
+          @"
+/* tslint:disable */
+/* eslint-disable */
+
+export function segment(text: string): string;
+"@ | Out-File -FilePath "build/fast-bunkai.d.ts" -Encoding utf8
+          Write-Host "✓ Build complete!"
 
       - name: Run tests
         working-directory: fast-bunkai-ts
