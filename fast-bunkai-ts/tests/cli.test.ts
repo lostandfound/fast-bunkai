@@ -4,10 +4,9 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, unlinkSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
-const CLI_PATH = join(__dirname, '../src/cli.ts');
 const BIN_PATH = join(__dirname, '../bin/fast-bunkai.mjs');
 
 describe('CLI', () => {
@@ -57,12 +56,11 @@ describe('CLI', () => {
 
   it('should output to file', () => {
     writeFileSync(testInputFile, '文1。文2！', 'utf-8');
-    execSync(`node --loader ts-node/esm ${CLI_PATH} -i ${testInputFile} -o ${testOutputFile}`, {
+    execSync(`node ${BIN_PATH} -i ${testInputFile} -o ${testOutputFile}`, {
       encoding: 'utf-8',
     });
     expect(existsSync(testOutputFile)).toBe(true);
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const output = require('fs').readFileSync(testOutputFile, 'utf-8');
+    const output = readFileSync(testOutputFile, 'utf-8');
     expect(output).toContain('文1。');
     expect(output).toContain('文2！');
   });
