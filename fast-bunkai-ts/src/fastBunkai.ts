@@ -21,7 +21,34 @@ import { initializeKuromoji, tokenizeText, convertKuromojiToTokenResult } from '
  * ```
  */
 export class FastBunkai {
+  private static readonly LARGE_TEXT_THRESHOLD_BYTES = 10 * 1024 * 1024; // 10 MiB
   private lastResult: { text: string; result: SegmentResult } | null = null;
+
+  /**
+   * Warn if text is too large (similar to Python version)
+   * 
+   * @param text - Input text to check
+   * @private
+   */
+  private warnLargeText(text: string): void {
+    // Quick check: if text length * 4 (approximate UTF-8 bytes) < threshold, skip
+    if (text.length * 4 < FastBunkai.LARGE_TEXT_THRESHOLD_BYTES) {
+      return;
+    }
+    
+    // Calculate actual UTF-8 byte size
+    const textBytes = new TextEncoder().encode(text).length;
+    if (textBytes < FastBunkai.LARGE_TEXT_THRESHOLD_BYTES) {
+      return;
+    }
+    
+    const sizeMib = textBytes / (1024 * 1024);
+    // Use process.stderr.write for consistency with Python's warnings
+    process.stderr.write(
+      `Warning: fast-bunkai received approximately ${sizeMib.toFixed(2)} MiB of text; ` +
+      'segmentation may consume large memory due to intermediate annotations.\n'
+    );
+  }
 
   /**
    * Get segmentation result, using cache if the same text is requested
@@ -34,6 +61,7 @@ export class FastBunkai {
     if (this.lastResult?.text === text) {
       return this.lastResult.result;
     }
+    this.warnLargeText(text);
     const result = segmentNative(text);
     this.lastResult = { text, result };
     return result;
@@ -90,6 +118,7 @@ export class FastBunkai {
    */
   async eos(text: string): Promise<Annotations> {
     await initializeKuromoji();
+    this.warnLargeText(text);
 
     const result = segmentNative(text);
     const annotations = new Annotations();

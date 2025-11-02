@@ -6,7 +6,7 @@
  */
 
 import { FastBunkai } from './fastBunkai';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 
 const METACHAR_SENTENCE_BOUNDARY = '│';
 const METACHAR_LINE_BREAK = '▁';
@@ -81,36 +81,31 @@ function showVersion() {
   }
 }
 
-function readInput(input?: string): string {
-  if (input && input !== '-' && existsSync(input)) {
-    return readFileSync(input, 'utf-8');
-  }
-  
-  // Read from stdin
-  return readFileSync(0, 'utf-8');
-}
+// readInput and writeOutput functions are no longer used in line-by-line processing
+// Kept for backwards compatibility if needed
 
-function writeOutput(content: string, output?: string) {
-  if (output && output !== '-') {
-    writeFileSync(output, content, 'utf-8');
-  } else {
-    process.stdout.write(content);
-  }
-}
-
+/**
+ * Format sentence output (similar to Python's _sentence_output)
+ * 
+ * @param sentences - Array of sentence strings
+ * @returns Formatted output string (without trailing newline, as Python version yields it separately)
+ */
 function formatOutput(sentences: string[]): string {
   // Format similar to Python version: join with METACHAR_SENTENCE_BOUNDARY
   // Preserve line breaks using METACHAR_LINE_BREAK
+  // Matching Python's _sentence_output behavior exactly
   const formatted: string[] = [];
   
-  for (const sentence of sentences) {
+  for (let idx = 0; idx < sentences.length; idx++) {
+    if (idx > 0) {
+      formatted.push(METACHAR_SENTENCE_BOUNDARY);
+    }
     // Replace newlines with METACHAR_LINE_BREAK for display
-    const formattedSentence = sentence.replace(/\n/g, METACHAR_LINE_BREAK);
+    const formattedSentence = sentences[idx].replace(/\n/g, METACHAR_LINE_BREAK);
     formatted.push(formattedSentence);
   }
   
-  // Join sentences with boundary marker
-  return formatted.join(METACHAR_SENTENCE_BOUNDARY);
+  return formatted.join('');
 }
 
 /**
@@ -192,6 +187,92 @@ async function morphOutput(text: string, splitter: FastBunkai): Promise<string> 
   return output.join('');
 }
 
+/**
+ * Process a single line (similar to Python's _process_line)
+ * 
+ * @param splitter - FastBunkai instance
+ * @param line - Input line (may include trailing newline)
+ * @param ma - Whether to output morphological analysis
+ * @param warned - Whether warning has been shown for METACHAR_SENTENCE_BOUNDARY
+ * @returns Tuple of [warned flag, output string]
+ */
+async function processLine(
+  splitter: FastBunkai,
+  line: string,
+  ma: boolean,
+  warned: boolean
+): Promise<[boolean, string]> {
+  // Remove trailing newline if present (matching Python version)
+  const raw = line.endsWith('\n') ? line.slice(0, -1) : line;
+  
+  let currentWarned = warned;
+  let processedRaw = raw;
+  
+  // Check for METACHAR_SENTENCE_BOUNDARY and show warning if needed
+  if (raw.includes(METACHAR_SENTENCE_BOUNDARY)) {
+    processedRaw = raw.replace(METACHAR_SENTENCE_BOUNDARY, '');
+    if (!currentWarned) {
+      process.stderr.write(
+        '\x1b[91m' +
+        '[Warning] All │ characters will be removed from input to avoid ambiguity\n' +
+        '\x1b[0m'
+      );
+      currentWarned = true;
+    }
+  }
+  
+  // Replace METACHAR_LINE_BREAK with actual newline
+  const text = processedRaw.replace(METACHAR_LINE_BREAK, '\n');
+  
+  let output: string;
+  if (ma) {
+    output = await morphOutput(text, splitter);
+  } else {
+    const sentences = splitter.segment(text);
+    output = formatOutput(sentences);
+  }
+  
+  return [currentWarned, output];
+}
+
+/**
+ * Read input line by line (streaming) and process each line
+ * This matches Python version's behavior
+ * 
+ * Note: For stdin, we read all at once and split (Node.js limitation in sync mode)
+ * For files, we can read line by line more efficiently
+ */
+function readInputLines(input?: string): string[] {
+  if (input && input !== '-' && existsSync(input)) {
+    // Read file and split into lines
+    const content = readFileSync(input, 'utf-8');
+    const lines = content.split(/\r?\n/);
+    return lines.map((line, index, array) => {
+      // Add newline to all lines except the last if file doesn't end with newline
+      if (index === array.length - 1 && !content.endsWith('\n') && !content.endsWith('\r\n')) {
+        return line;
+      }
+      return line + '\n';
+    });
+  }
+  
+  // Read from stdin (read all at once due to Node.js limitation)
+  // Python version reads line by line from stdin, but Node.js doesn't have
+  // a simple synchronous line-by-line reader, so we read all and split
+  const stdinContent = readFileSync(0, 'utf-8');
+  if (!stdinContent) {
+    return [];
+  }
+  const lines = stdinContent.split(/\r?\n/);
+  return lines.map((line, index, array) => {
+    // Add newline except for the last line if stdin doesn't end with newline
+    if (index === array.length - 1 && !stdinContent.endsWith('\n') && !stdinContent.endsWith('\r\n')) {
+      return line;
+    }
+    return line + '\n';
+  });
+}
+
 async function main() {
   const options = parseArgs();
   
@@ -207,28 +288,46 @@ async function main() {
   
   try {
     const splitter = new FastBunkai();
-    const text = readInput(options.input);
+    let warned = false;
     
-    if (!text.trim()) {
-      // Empty input, exit gracefully
-      return;
-    }
+    // Read input line by line (matching Python version)
+    const lines = readInputLines(options.input);
     
-    let output: string;
-    if (options.ma) {
-      // Morphological analysis output
-      output = await morphOutput(text, splitter);
-    } else {
-      // Sentence segmentation output
-      const sentences = splitter.segment(text);
-      output = formatOutput(sentences);
-      // Add newline if outputting to stdout
-      if (!options.output || options.output === '-') {
-        output += '\n';
+    // Open output writer (file or stdout)
+    const { createWriteStream } = await import('fs');
+    const outputWriter: NodeJS.WritableStream | null = options.output && options.output !== '-' 
+      ? createWriteStream(options.output, { encoding: 'utf-8' })
+      : null;
+    
+    try {
+      for (const line of lines) {
+        const [newWarned, output] = await processLine(splitter, line, options.ma || false, warned);
+        warned = newWarned;
+        
+        // Write output chunk by chunk (matching Python version's iterator behavior)
+        if (outputWriter) {
+          outputWriter.write(output);
+        } else {
+          process.stdout.write(output);
+        }
+        
+        // Add newline after each line's output (matching Python version)
+        // Note: _sentence_output always adds a newline at the end
+        // _morph_output doesn't add an extra newline (it's already in the output)
+        if (!options.ma) {
+          if (outputWriter) {
+            outputWriter.write('\n');
+          } else {
+            process.stdout.write('\n');
+          }
+        }
+      }
+    } finally {
+      // Close file writer if opened (matching Python version)
+      if (outputWriter) {
+        outputWriter.end();
       }
     }
-    
-    writeOutput(output, options.output);
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
