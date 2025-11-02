@@ -42,7 +42,7 @@ jobs:
         run: |
           cargo test face_mark_detection_matches_reference
           cargo fmt --all -- --check
-          cargo clippy --all-targets -- -D warnings
+          cargo clippy --all-targets --features node -- -D warnings
 
   # TypeScript版のテスト（複数プラットフォーム）
   typescript-tests:
