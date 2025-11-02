@@ -13,12 +13,9 @@
 
 - [✨ Highlights](#-highlights)
 - [🚀 Quick Start](#-quick-start)
-  - [Python版](#python版)
-  - [TypeScript/Node.js版](#typescriptnodejs版)
 - [🧰 CLI Examples](#-cli-examples)
 - [📊 Benchmarks](#-benchmarks)
 - [🧠 Architecture Snapshot](#-architecture-snapshot)
-- [🔀 Python版とTypeScript版の比較](#-python版とtypescript版の比較)
 - [🛠️ Development Workflow](#️-development-workflow)
 - [🧪 Testing & Quality Gates](#-testing--quality-gates)
 - [🙏 Acknowledgements](#-acknowledgements)
@@ -35,15 +32,13 @@
 
 ## 🚀 Quick Start
 
-### Python版
-
-#### Install
+### Install
 
 ```bash
 uv pip install fast-bunkai
 ```
 
-#### Usage
+### Python Usage
 
 ```python
 from fast_bunkai import FastBunkai
@@ -63,81 +58,13 @@ Output:
 でも、予算は大丈夫かな…?
 ```
 
-既存の bunkai ユーザは `from fast_bunkai import FastBunkai as Bunkai` と書き換えるだけで簡単に移行できます。
-
-### TypeScript/Node.js版
-
-#### Install
-
-```bash
-npm install fast-bunkai
-```
-
-**注意**: kuromoji辞書を含むため、パッケージサイズは約41MBです。
-
-#### Usage
-
-```typescript
-import { FastBunkai } from 'fast-bunkai';
-
-const splitter = new FastBunkai();
-const text = "羽田から✈️出発して、友だちと🍣食べました。最高！また行きたいな😂でも、予算は大丈夫かな…?";
-const sentences = splitter.segment(text);
-
-for (const sentence of sentences) {
-  console.log(sentence);
-}
-```
-
-#### 形態素解析機能（非同期API）
-
-```typescript
-import { FastBunkai } from 'fast-bunkai';
-
-const splitter = new FastBunkai();
-const text = "形態素解析します";
-
-// eos()メソッドは非同期APIです（kuromojiの制約）
-const annotations = await splitter.eos(text);
-
-// 形態素解析レイヤーを取得
-const morphLayer = Array.from(
-  annotations.getAnnotationLayer('MorphAnnotatorKuromoji')
-);
-
-for (const span of morphLayer) {
-  const token = span.args?.token;
-  if (token) {
-    console.log(`${token.surface}: ${token.pos}`);
-  }
-}
-```
-
-#### EOSインデックスの取得
-
-```typescript
-const splitter = new FastBunkai();
-const text = "文1。文2！文3？";
-const eosIndices = splitter.findEos(text);
-console.log(eosIndices); // [2, 5, 8]
-```
-
 ## 🧰 CLI Examples
 
-`fast-bunkai` provides the same pipe-friendly command-line interface as bunkai for both Python and TypeScript versions.
-
-### Python版
+`fast-bunkai` provides the same pipe-friendly command-line interface as bunkai.
 
 ```bash
 echo -e '宿を予約しました♪!▁まだ2ヶ月も先だけど。▁早すぎかな(笑)楽しみです★\n2文書目です。▁改行を含みます。' \
   | uvx fast-bunkai
-```
-
-### TypeScript/Node.js版
-
-```bash
-echo -e '宿を予約しました♪!▁まだ2ヶ月も先だけど。▁早すぎかな(笑)楽しみです★\n2文書目です。▁改行を含みます。' \
-  | node fast-bunkai-ts/bin/fast-bunkai.mjs
 ```
 
 Output (sentence boundaries marked with `│`, newlines preserved via `▁`):
@@ -147,21 +74,11 @@ Output (sentence boundaries marked with `│`, newlines preserved via `▁`):
 2文書目です。▁│改行を含みます。
 ```
 
-### 形態素解析出力（`--ma`オプション）
-
-#### Python版
+Morphological output is also available:
 
 ```bash
 echo -e '形態素解析し▁ます。結果を 表示します！' | uvx fast-bunkai --ma
 ```
-
-#### TypeScript/Node.js版
-
-```bash
-echo -e '形態素解析し▁ます。結果を 表示します！' | node fast-bunkai-ts/bin/fast-bunkai.mjs --ma
-```
-
-Output (Python版はJanome、TypeScript版はkuromojiを使用):
 
 ```
 形態素	名詞,一般,*,*,*,*,形態素,ケイタイソ,ケイタイソ
@@ -204,28 +121,9 @@ Actual numbers vary by hardware, but the Rust core consistently outperforms pure
 
 ## 🧠 Architecture Snapshot
 
-- 🦀 **Rust core (`src/lib.rs`)**: facemark & emoji annotators, dot/number exceptions, indirect quote handling, and more. Shared between Python and TypeScript versions.
-  - **Python版**: Uses PyO3 `abi3` bindings and releases the GIL with `py.allow_threads`.
-  - **TypeScript版**: Uses napi-rs for Node.js bindings.
+- 🦀 **Rust core (`src/lib.rs`)**: facemark & emoji annotators, dot/number exceptions, indirect quote handling, and more. Uses PyO3 `abi3` bindings and releases the GIL with `py.allow_threads`.
 - 😀 **Emoji metadata (`src/emoji_data.rs`)**: generated via `scripts/generate_emoji_data.py`, mapping Unicode codepoints to bunkai-compatible categories.
 - 🐍 **Python layer (`fast_bunkai/`)**: wraps the Rust `segment` function, mirrors bunkai annotations with dataclasses, and builds Janome spans through `MorphAnnotatorJanome` for drop-in parity.
-- 📘 **TypeScript layer (`fast-bunkai-ts/`)**: wraps the Rust `segment` function, mirrors bunkai annotations with TypeScript interfaces, and builds kuromoji spans through `MorphAnnotatorKuromoji` for compatibility.
-
-## 🔀 Python版とTypeScript版の比較
-
-| 機能 | Python版 | TypeScript版 | 備考 |
-|------|----------|--------------|------|
-| **基本API** | ✅ | ✅ | `segment()`, `findEos()` 完全実装 |
-| **形態素解析** | ✅ Janome | ✅ kuromoji | TypeScript版は非同期API |
-| **CLI機能** | ✅ | ✅ | `--ma`オプション含む |
-| **大きなテキスト警告** | ✅ | ✅ | 10MB以上のテキストで警告 |
-| **パッケージサイズ** | 軽量 | 約41MB | kuromoji辞書を含む |
-
-**詳細比較**: [docs/python-vs-typescript-comparison.md](docs/python-vs-typescript-comparison.md)
-
-### 機能カバレッジ
-- **Python版**: 100%
-- **TypeScript版**: 約99% (非同期APIの違いのみ)
 
 ## 🛠️ Development Workflow
 
