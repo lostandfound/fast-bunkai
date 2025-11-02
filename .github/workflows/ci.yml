@@ -76,35 +76,37 @@ jobs:
         working-directory: fast-bunkai-ts
         run: npm ci
 
-      - name: Build native module
+      - name: Build native module (Linux/macOS)
+        if: matrix.use-build-script == true
         working-directory: fast-bunkai-ts
-        shell: ${{ matrix.shell }}
         run: |
-          if [ "${{ matrix.use-build-script }}" = "true" ]; then
-            export PATH="$HOME/.cargo/bin:$PATH"
-            npm run build
-          else
-            # Windows用のビルド手順
-            $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-            cd ..
-            cargo build --features node --release
-            cd fast-bunkai-ts
-            if (Test-Path "../target/release/fast_bunkai_native.dll") {
-              New-Item -ItemType Directory -Force -Path "build" | Out-Null
-              Copy-Item "../target/release/fast_bunkai_native.dll" "build/fast-bunkai.win32-x64-msvc.node"
-              Write-Host "✓ Binary copied to build/fast-bunkai.win32-x64-msvc.node"
-            } else {
-              Write-Host "Error: No binary found"
-              exit 1
-            }
-            @"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          npm run build
+
+      - name: Build native module (Windows)
+        if: matrix.use-build-script == false
+        working-directory: fast-bunkai-ts
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+          cd ..
+          cargo build --features node --release
+          cd fast-bunkai-ts
+          if (Test-Path "../target/release/fast_bunkai_native.dll") {
+            New-Item -ItemType Directory -Force -Path "build" | Out-Null
+            Copy-Item "../target/release/fast_bunkai_native.dll" "build/fast-bunkai.win32-x64-msvc.node"
+            Write-Host "✓ Binary copied to build/fast-bunkai.win32-x64-msvc.node"
+          } else {
+            Write-Host "Error: No binary found"
+            exit 1
+          }
+          @"
           /* tslint:disable */
           /* eslint-disable */
           
           export function segment(text: string): string;
           "@ | Out-File -FilePath "build/fast-bunkai.d.ts" -Encoding utf8
-            Write-Host "✓ Build complete!"
-          fi
+          Write-Host "✓ Build complete!"
 
       - name: Run tests
         working-directory: fast-bunkai-ts
