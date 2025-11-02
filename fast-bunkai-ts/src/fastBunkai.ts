@@ -6,6 +6,7 @@
 import { segmentRuntime as segmentNative, type SegmentResult } from './native';
 import { Annotations, type Span } from './annotations';
 import { initializeKuromoji, tokenizeText, convertKuromojiToTokenResult } from './morphological/kuromojiAdapter';
+import type { IpadicFeatures } from 'kuromoji';
 
 /**
  * FastBunkai sentence boundary disambiguation
@@ -165,58 +166,115 @@ export class FastBunkai {
    */
   private async _buildMorphLayer(text: string): Promise<Span[]> {
     const tokens = await tokenizeText(text);
+    return this._tokensToSpans(tokens, text);
+  }
+
+  /**
+   * Convert kuromoji tokens to span annotations
+   * 
+   * @param tokens - Tokenized results from kuromoji
+   * @param originalText - Original input text
+   * @returns Array of spans
+   * @private
+   */
+  private _tokensToSpans(
+    tokens: IpadicFeatures[],
+    originalText: string
+  ): Span[] {
     const spans: Span[] = [];
     let startIndex = 0;
 
     for (const token of tokens) {
-      const surface = token.surface_form;
-      const length = surface.length;
-
-      const tokenResult = convertKuromojiToTokenResult(token);
-      
-      spans.push({
-        rule_name: 'MorphAnnotatorKuromoji',
-        start: startIndex,
-        end: startIndex + length,
-        split_type: 'kuromoji',
-        split_value: 'token',
-        args: { 
-          token: {
-            ...tokenResult,
-            // Keep original kuromoji token as node_obj (for compatibility)
-            node_obj: token,
-            tuple_pos: (Array.isArray(token.pos) && token.pos.length > 0 
-              ? (token.pos as unknown as string[]) as [string, ...string[]]
-              : ['*', '*', '*', '*']),
-            word_stem: tokenResult.base_form || tokenResult.surface,
-            word_surface: tokenResult.surface,
-          },
-        } as Record<string, unknown>,
-      });
-
-      startIndex += length;
+      spans.push(this._createTokenSpan(token, startIndex));
+      startIndex += token.surface_form.length;
     }
 
-    // Handle trailing newline (matching Python version)
-    if (startIndex < text.length && text.slice(startIndex) === '\n') {
-      spans.push({
-        rule_name: 'MorphAnnotatorKuromoji',
-        start: startIndex,
-        end: text.length,
-        split_type: 'kuromoji',
-        split_value: 'token',
-        args: {
-          token: {
-            node_obj: null,
-            tuple_pos: ['記号', '空白', '*', '*'],
-            word_stem: '\n',
-            word_surface: '\n',
-          },
-        },
-      });
+    // Handle trailing newline
+    const trailingNewlineSpan = this._createTrailingNewlineSpan(startIndex, originalText);
+    if (trailingNewlineSpan) {
+      spans.push(trailingNewlineSpan);
     }
 
     return spans;
+  }
+
+  /**
+   * Create a span annotation for a single token
+   * 
+   * @param token - Kuromoji token
+   * @param startIndex - Start position in UTF-16 code units
+   * @returns Span annotation
+   * @private
+   */
+  private _createTokenSpan(
+    token: IpadicFeatures,
+    startIndex: number
+  ): Span {
+    const surface = token.surface_form;
+    const length = surface.length;
+    const tokenResult = convertKuromojiToTokenResult(token);
+    
+    return {
+      rule_name: 'MorphAnnotatorKuromoji',
+      start: startIndex,
+      end: startIndex + length,
+      split_type: 'kuromoji',
+      split_value: 'token',
+      args: { 
+        token: {
+          ...tokenResult,
+          // Keep original kuromoji token as node_obj (for compatibility)
+          node_obj: token,
+          tuple_pos: this._normalizePos(token.pos),
+          word_stem: tokenResult.base_form || tokenResult.surface,
+          word_surface: tokenResult.surface,
+        },
+      } as Record<string, unknown>,
+    };
+  }
+
+  /**
+   * Normalize part-of-speech array to tuple format
+   * 
+   * @param pos - POS from kuromoji (can be string, string[], or undefined)
+   * @returns Normalized POS tuple
+   * @private
+   */
+  private _normalizePos(pos: string | string[] | undefined): [string, ...string[]] {
+    if (Array.isArray(pos) && pos.length > 0) {
+      return pos as unknown as [string, ...string[]];
+    }
+    return ['*', '*', '*', '*'];
+  }
+
+  /**
+   * Create span for trailing newline if present
+   * 
+   * @param startIndex - Current position after processing tokens
+   * @param text - Original text
+   * @returns Span for trailing newline, or null if not present
+   * @private
+   */
+  private _createTrailingNewlineSpan(startIndex: number, text: string): Span | null {
+    if (startIndex >= text.length || text.slice(startIndex) !== '\n') {
+      return null;
+    }
+    
+    return {
+      rule_name: 'MorphAnnotatorKuromoji',
+      start: startIndex,
+      end: text.length,
+      split_type: 'kuromoji',
+      split_value: 'token',
+      args: {
+        token: {
+          node_obj: null,
+          tuple_pos: ['記号', '空白', '*', '*'],
+          word_stem: '\n',
+          word_surface: '\n',
+        },
+      },
+    };
   }
 }
 

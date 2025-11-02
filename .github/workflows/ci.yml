@@ -44,9 +44,22 @@ jobs:
           cargo fmt --all -- --check
           cargo clippy --all-targets -- -D warnings
 
-  # TypeScript版のテスト（Linux）
-  typescript-tests-linux:
-    runs-on: ubuntu-latest
+  # TypeScript版のテスト（複数プラットフォーム）
+  typescript-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            use-build-script: true
+          - os: macos-latest
+            shell: bash
+            use-build-script: true
+          - os: windows-latest
+            shell: pwsh
+            use-build-script: false
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -65,9 +78,33 @@ jobs:
 
       - name: Build native module
         working-directory: fast-bunkai-ts
+        shell: ${{ matrix.shell }}
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          npm run build
+          if [ "${{ matrix.use-build-script }}" = "true" ]; then
+            export PATH="$HOME/.cargo/bin:$PATH"
+            npm run build
+          else
+            # Windows用のビルド手順
+            $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+            cd ..
+            cargo build --features node --release
+            cd fast-bunkai-ts
+            if (Test-Path "../target/release/fast_bunkai_native.dll") {
+              New-Item -ItemType Directory -Force -Path "build" | Out-Null
+              Copy-Item "../target/release/fast_bunkai_native.dll" "build/fast-bunkai.win32-x64-msvc.node"
+              Write-Host "✓ Binary copied to build/fast-bunkai.win32-x64-msvc.node"
+            } else {
+              Write-Host "Error: No binary found"
+              exit 1
+            }
+            @"
+          /* tslint:disable */
+          /* eslint-disable */
+          
+          export function segment(text: string): string;
+          "@ | Out-File -FilePath "build/fast-bunkai.d.ts" -Encoding utf8
+            Write-Host "✓ Build complete!"
+          fi
 
       - name: Run tests
         working-directory: fast-bunkai-ts
@@ -80,98 +117,3 @@ jobs:
       - name: Lint
         working-directory: fast-bunkai-ts
         run: npm run lint
-
-  # TypeScript版のテスト（macOS）
-  typescript-tests-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        working-directory: fast-bunkai-ts
-        run: npm ci
-
-      - name: Build native module
-        working-directory: fast-bunkai-ts
-        run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          npm run build
-
-      - name: Run tests
-        working-directory: fast-bunkai-ts
-        run: npm test
-
-      - name: Type check
-        working-directory: fast-bunkai-ts
-        run: npm run typecheck
-
-      - name: Lint
-        working-directory: fast-bunkai-ts
-        run: npm run lint
-
-  # TypeScript版のテスト（Windows）
-  typescript-tests-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        working-directory: fast-bunkai-ts
-        run: npm ci
-
-      - name: Build native module (Windows)
-        shell: pwsh
-        working-directory: fast-bunkai-ts
-        run: |
-          $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-          # Windows用のビルド手順
-          cd ..
-          cargo build --features node --release
-          cd fast-bunkai-ts
-          if (Test-Path "../target/release/fast_bunkai_native.dll") {
-            New-Item -ItemType Directory -Force -Path "build" | Out-Null
-            Copy-Item "../target/release/fast_bunkai_native.dll" "build/fast-bunkai.win32-x64-msvc.node"
-            Write-Host "✓ Binary copied to build/fast-bunkai.win32-x64-msvc.node"
-          } else {
-            Write-Host "Error: No binary found"
-            exit 1
-          }
-          # TypeScript定義ファイルを生成
-          @"
-/* tslint:disable */
-/* eslint-disable */
-
-export function segment(text: string): string;
-"@ | Out-File -FilePath "build/fast-bunkai.d.ts" -Encoding utf8
-          Write-Host "✓ Build complete!"
-
-      - name: Run tests
-        working-directory: fast-bunkai-ts
-        run: npm test
-
-      - name: Type check
-        working-directory: fast-bunkai-ts
-        run: npm run typecheck
-
-      - name: Lint
-        working-directory: fast-bunkai-ts
-        run: npm run lint
-

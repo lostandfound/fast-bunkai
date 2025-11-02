@@ -10,23 +10,34 @@ cd ..
 cargo build --features node --release
 
 echo "Detecting platform..."
-PLATFORM=""
-ARCH=$(uname -m)
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 
-if [[ "$OS" == "darwin" ]]; then
-  if [[ "$ARCH" == "arm64" ]]; then
-    PLATFORM="darwin-arm64"
-  else
-    PLATFORM="darwin-x64"
-  fi
-elif [[ "$OS" == "linux" ]]; then
-  if [[ "$ARCH" == "aarch64" ]]; then
-    PLATFORM="linux-arm64-gnu"
-  else
-    PLATFORM="linux-x64-gnu"
-  fi
-fi
+# Helper function to get platform name (matching native.ts logic)
+get_platform_name() {
+  local os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  local arch=$(uname -m)
+  
+  case "$os" in
+    darwin)
+      if [ "$arch" = "arm64" ]; then
+        echo "darwin-arm64"
+      else
+        echo "darwin-x64"
+      fi
+      ;;
+    linux)
+      if [ "$arch" = "aarch64" ]; then
+        echo "linux-arm64-gnu"
+      else
+        echo "linux-x64-gnu"
+      fi
+      ;;
+    *)
+      echo "unknown"
+      ;;
+  esac
+}
+
+PLATFORM=$(get_platform_name)
 
 echo "Platform: $PLATFORM"
 echo "Copying binary..."

@@ -85,7 +85,13 @@ function loadNativeModule(): { segment: (text: string) => string } {
     // Use require for .node files (CommonJS compatible)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const loaded = requireModule(binaryPath);
-    nativeModule = loaded as { segment: (text: string) => string };
+    
+    // Type guard to validate the loaded module
+    if (typeof loaded?.segment !== 'function') {
+      throw new Error('Native module does not export segment function');
+    }
+    
+    nativeModule = { segment: loaded.segment };
     return nativeModule;
   } catch (error) {
     throw new Error(
