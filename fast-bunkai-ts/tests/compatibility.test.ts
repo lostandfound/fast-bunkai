@@ -46,7 +46,6 @@ describe('Compatibility with Python version', () => {
         const sentences = splitter.segment(text);
         expect(sentences.length).toBeGreaterThan(0);
         // Verify that all sentences are substrings of the original text
-        const combined = sentences.join('');
         // Allow for whitespace/normalization differences
         expect(text).toContain(sentences[0]);
       });
@@ -93,9 +92,8 @@ describe('Compatibility with Python version', () => {
       for (let i = 0; i < sentences.length - 1; i++) {
         lastIndex += sentences[i].length;
         // The last index should be close to an EOS index (allow for small differences)
-        const hasNearbyEos = eosIndices.some(eos => Math.abs(eos - lastIndex) <= 1);
+        // Note: Not all cases will have exact matches due to normalization
         if (sentences.length > 1 && i < sentences.length - 1) {
-          // Not all cases will have exact matches due to normalization
           expect(typeof lastIndex).toBe('number');
         }
       }

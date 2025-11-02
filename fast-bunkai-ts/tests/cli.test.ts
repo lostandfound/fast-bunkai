@@ -58,6 +58,7 @@ describe('CLI', () => {
       encoding: 'utf-8',
     });
     expect(existsSync(testOutputFile)).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const output = require('fs').readFileSync(testOutputFile, 'utf-8');
     expect(output).toContain('文1。');
     expect(output).toContain('文2！');
@@ -71,6 +72,7 @@ describe('CLI', () => {
   });
 
   it('should show help', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const result = execSync(`node --loader ts-node/esm ${CLI_PATH} --help`, {
       encoding: 'utf-8',
     });

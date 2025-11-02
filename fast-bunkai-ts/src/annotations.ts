@@ -18,6 +18,8 @@ export interface Span {
   split_type?: string;
   /** Value of split, if any */
   split_value?: string;
+  /** Additional arguments (e.g., token information) */
+  args?: Record<string, unknown>;
 }
 
 /**
@@ -42,15 +44,113 @@ export interface AnnotationResult {
 
 /**
  * Token result (for morphological analysis, if supported)
+ * 
+ * Compatible with Python's TokenResult structure
  */
 export interface TokenResult {
   /** Surface form */
   surface: string;
-  /** Part of speech */
+  /** Part of speech (comma-separated string) */
   pos: string;
   /** Base form */
   base_form?: string;
   /** Reading */
   reading?: string;
+  /** Phonetic (pronunciation) */
+  phonetic?: string;
+  /** Original token object (for compatibility with Python's node_obj) */
+  node_obj?: unknown;
+  /** Part of speech as tuple (for compatibility) */
+  tuple_pos?: [string, ...string[]];
+  /** Word stem (for compatibility) */
+  word_stem?: string;
+  /** Word surface (for compatibility) */
+  word_surface?: string;
 }
 
+/**
+ * Annotations class - manages annotation layers
+ * 
+ * Mirrors Python's `fast_bunkai.annotations.Annotations` class
+ */
+export class Annotations {
+  private name2spans: Map<string, Span[]> = new Map();
+  private name2order: Map<string, number> = new Map();
+  private annotatorForward: string | null = null;
+  private currentOrder = 0;
+
+  /**
+   * Add an annotation layer
+   * 
+   * @param annotatorName - Name of the annotator/layer
+   * @param annotations - List of spans for this layer
+   */
+  addAnnotationLayer(annotatorName: string, annotations: Span[]): void {
+    this.name2spans.set(annotatorName, annotations);
+    this.name2order.set(annotatorName, this.currentOrder);
+    this.annotatorForward = annotatorName;
+    this.currentOrder += 1;
+  }
+
+  /**
+   * Get the final layer (last added layer)
+   * 
+   * @returns List of spans in the final layer
+   */
+  getFinalLayer(): Span[] {
+    if (!this.annotatorForward) {
+      return [];
+    }
+    const spans = this.name2spans.get(this.annotatorForward) || [];
+    // Return spans with end_index for compatibility (if using start/end instead)
+    return spans.map(span => ({
+      ...span,
+      end_index: span.end || span.start + 1,
+      start_index: span.start || 0,
+    }));
+  }
+
+  /**
+   * Get spans from a specific annotation layer
+   * 
+   * @param layerName - Name of the layer
+   * @returns Iterator of spans
+   */
+  *getAnnotationLayer(layerName: string): Generator<Span> {
+    const layerSpans = this.name2spans.get(layerName);
+    if (layerSpans) {
+      for (const span of layerSpans) {
+        yield span;
+      }
+    }
+  }
+
+  /**
+   * Get all available layer names
+   * 
+   * @returns Array of layer names
+   */
+  availableLayers(): string[] {
+    return Array.from(this.name2spans.keys());
+  }
+
+  /**
+   * Flatten all annotations into a single iterator
+   * 
+   * @returns Iterator of all spans
+   */
+  *flatten(): Generator<Span> {
+    for (const spans of this.name2spans.values()) {
+      for (const span of spans) {
+        yield span;
+      }
+    }
+  }
+}
+
+/**
+ * SpanAnnotation - compatible with Python's SpanAnnotation
+ * 
+ * Note: This is kept for compatibility but uses the Span interface
+ */
+export type SpanAnnotation = Span;

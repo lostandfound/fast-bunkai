@@ -52,5 +52,35 @@ describe('FastBunkai', () => {
     const sentences = splitter.segment(text);
     expect(sentences.length).toBeGreaterThan(0);
   });
+
+  describe('caching', () => {
+    it('should cache results for the same text', () => {
+      const text = 'テスト文。もう一文。';
+      
+      // First call
+      const sentences1 = splitter.segment(text);
+      const eos1 = splitter.findEos(text);
+      
+      // Second call - should use cache
+      const sentences2 = splitter.segment(text);
+      const eos2 = splitter.findEos(text);
+      
+      // Results should be identical
+      expect(sentences1).toEqual(sentences2);
+      expect(eos1).toEqual(eos2);
+    });
+
+    it('should invalidate cache for different text', () => {
+      const text1 = '文1。';
+      const text2 = '文2！';
+      
+      splitter.segment(text1);
+      const sentences2 = splitter.segment(text2);
+      
+      expect(sentences2.length).toBeGreaterThan(0);
+      // Should have different content
+      expect(sentences2).not.toEqual(splitter.segment(text1));
+    });
+  });
 });
 

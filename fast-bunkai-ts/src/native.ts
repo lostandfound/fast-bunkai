@@ -42,6 +42,27 @@ export declare function segment(text: string): SegmentResult;
 let nativeModule: { segment: (text: string) => string } | null = null;
 
 /**
+ * Get platform-specific binary name
+ * 
+ * @returns Binary filename for the current platform
+ */
+function getPlatformBinaryName(): string {
+  const platform = os.platform();
+  const arch = os.arch();
+  
+  if (platform === 'darwin') {
+    return arch === 'arm64' ? 'fast-bunkai.darwin-arm64.node' : 'fast-bunkai.darwin-x64.node';
+  }
+  if (platform === 'linux') {
+    return arch === 'arm64' ? 'fast-bunkai.linux-arm64-gnu.node' : 'fast-bunkai.linux-x64-gnu.node';
+  }
+  if (platform === 'win32') {
+    return 'fast-bunkai.win32-x64-msvc.node';
+  }
+  return 'fast-bunkai.node';
+}
+
+/**
  * Initialize the native module (called automatically on first use)
  * Uses createRequire for ESM compatibility
  */
@@ -54,19 +75,8 @@ function loadNativeModule(): { segment: (text: string) => string } {
     // Use createRequire for ESM compatibility
     const requireModule = createRequire(import.meta.url);
     
-    const platform = os.platform();
-    const arch = os.arch();
-    
-    let binaryName = 'fast-bunkai';
-    if (platform === 'darwin') {
-      binaryName += arch === 'arm64' ? '.darwin-arm64.node' : '.darwin-x64.node';
-    } else if (platform === 'linux') {
-      binaryName += arch === 'arm64' ? '.linux-arm64-gnu.node' : '.linux-x64-gnu.node';
-    } else if (platform === 'win32') {
-      binaryName += '.win32-x64-msvc.node';
-    } else {
-      binaryName += '.node';
-    }
+    // Get platform-specific binary name
+    const binaryName = getPlatformBinaryName();
     
     // Get current directory in ESM
     const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -93,6 +103,13 @@ function loadNativeModule(): { segment: (text: string) => string } {
 export function segmentRuntime(text: string): SegmentResult {
   const native = loadNativeModule();
   const jsonString = native.segment(text);
+  
   // Parse JSON string returned from Rust
-  return JSON.parse(jsonString) as SegmentResult;
+  try {
+    return JSON.parse(jsonString) as SegmentResult;
+  } catch (error) {
+    throw new Error(
+      `Failed to parse segmentation result from native module: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

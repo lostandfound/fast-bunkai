@@ -16,6 +16,7 @@ interface CliOptions {
   output?: string;
   version?: boolean;
   help?: boolean;
+  ma?: boolean; // morphological analysis
 }
 
 function parseArgs(): CliOptions {
@@ -29,6 +30,8 @@ function parseArgs(): CliOptions {
       options.version = true;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
+    } else if (arg === '--ma') {
+      options.ma = true;
     } else if (arg === '--input' || arg === '-i') {
       options.input = args[++i];
     } else if (arg === '--output' || arg === '-o') {
@@ -55,6 +58,7 @@ Sentence boundary detection compatible with bunkai CLI
 Options:
   -i, --input FILE    Input file path (default: stdin)
   -o, --output FILE   Output file path (default: stdout)
+  --ma                Print morphological analysis result like bunkai --ma
   -v, --version        Print version information
   -h, --help          Show this help message
 
@@ -109,7 +113,86 @@ function formatOutput(sentences: string[]): string {
   return formatted.join(METACHAR_SENTENCE_BOUNDARY);
 }
 
-function main() {
+/**
+ * Format morphological analysis output (--ma option)
+ * 
+ * @param text - Input text
+ * @param splitter - FastBunkai instance
+ * @returns Formatted morphological analysis output
+ */
+async function morphOutput(text: string, splitter: FastBunkai): Promise<string> {
+  const annotations = await splitter.eos(text);
+  const finalSpans = annotations.getFinalLayer();
+  const endIndices = new Set(
+    finalSpans.map(span => (span as any).end_index || span.end)
+  );
+  
+  const spans = Array.from(
+    annotations.getAnnotationLayer('MorphAnnotatorKuromoji')
+  ).filter(span => span.rule_name === 'MorphAnnotatorKuromoji')
+    .sort((a, b) => (a.start || 0) - (b.start || 0));
+
+  const output: string[] = [];
+  const seen = new Set<number>();
+  let position = 0;
+
+  for (const span of spans) {
+    const tokenArg = span.args?.token;
+    if (!tokenArg) continue;
+
+    // Type assertion for token (compatible with TokenResult)
+    const token = tokenArg as {
+      surface?: string;
+      word_surface?: string;
+      pos?: string;
+      base_form?: string;
+      reading?: string;
+      phonetic?: string;
+      node_obj?: unknown;
+    };
+
+    const surface = token.surface || token.word_surface || '';
+    if (!surface) continue;
+
+    // Use node_obj as unique identifier if available
+    const tokenId = token.node_obj ? 
+      (position + Math.random()) : position; // Fallback to position for uniqueness
+    if (seen.has(tokenId)) continue;
+    seen.add(tokenId);
+
+    const prevPosition = position;
+
+    if (!token.node_obj || surface === '\n') {
+      output.push(METACHAR_LINE_BREAK + '\n');
+      position += 1;
+    } else {
+      const node = token.node_obj as { pos?: string[]; conjugated_type?: string; conjugated_form?: string; reading?: string; pronunciation?: string } | null;
+      const partOfSpeech = (Array.isArray(node?.pos) ? node.pos.join(',') : null) || token.pos || '*';
+      const inflType = node?.conjugated_type || '*';
+      const inflForm = node?.conjugated_form || '*';
+      const baseForm = token.base_form || surface;
+      const reading = token.reading || node?.reading || '*';
+      const phonetic = token.phonetic || node?.pronunciation || '*';
+
+      output.push(
+        `${surface}\t` +
+        `${partOfSpeech},${inflType},${inflForm},${baseForm},${reading},${phonetic}\n`
+      );
+      position += surface.length;
+    }
+
+    // Insert EOS markers
+    for (let idx = prevPosition; idx < position; idx++) {
+      if (endIndices.has(idx + 1)) {
+        output.push('EOS\n');
+      }
+    }
+  }
+
+  return output.join('');
+}
+
+async function main() {
   const options = parseArgs();
   
   if (options.help) {
@@ -131,15 +214,21 @@ function main() {
       return;
     }
     
-    const sentences = splitter.segment(text);
-    const output = formatOutput(sentences);
+    let output: string;
+    if (options.ma) {
+      // Morphological analysis output
+      output = await morphOutput(text, splitter);
+    } else {
+      // Sentence segmentation output
+      const sentences = splitter.segment(text);
+      output = formatOutput(sentences);
+      // Add newline if outputting to stdout
+      if (!options.output || options.output === '-') {
+        output += '\n';
+      }
+    }
     
     writeOutput(output, options.output);
-    
-    // Add newline if outputting to stdout
-    if (!options.output || options.output === '-') {
-      process.stdout.write('\n');
-    }
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
@@ -152,14 +241,12 @@ function main() {
 // Handle errors gracefully
 // Check if this module is being run directly
 if (import.meta.url === `file://${process.argv[1]}` || require.main === module) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     if (error instanceof Error) {
       console.error(`Fatal error: ${error.message}`);
       process.exit(1);
     }
     throw error;
-  }
+  });
 }
 
