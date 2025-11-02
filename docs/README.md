@@ -32,15 +32,15 @@
 
 #### 実装計画・調査関連
 
-- **[implementation-plan.md](./implementation-plan.md)**
+- **[implementation-plan.md](./archive/implementation/implementation-plan.md)** 📦 アーカイブ済み
   - **目的**: TypeScript版実装の詳細計画
   - **状態**: ✅ 実装完了
-  - **推奨**: アーカイブ（`docs/archive/implementation/`）に移動、またはプロジェクト履歴として保持
+  - **場所**: `docs/archive/implementation/`
 
-- **[morphological-analysis-feasibility.md](./morphological-analysis-feasibility.md)**
+- **[morphological-analysis-feasibility.md](./archive/research/morphological-analysis-feasibility.md)** 📦 アーカイブ済み
   - **目的**: 形態素解析機能（kuromoji）の実装可能性調査
   - **状態**: ✅ 実装完了
-  - **推奨**: アーカイブ（`docs/archive/research/`）に移動、または削除を検討
+  - **場所**: `docs/archive/research/`
 
 #### タスク管理・レビュー関連
 
@@ -50,19 +50,19 @@
   - **状態**: ⚠️ 継続的に更新が必要
   - **推奨**: プロジェクトボード（GitHub Issues/Projects）に移行、または完了後にアーカイブ
 
-- **[refactoring-points.md](./refactoring-points.md)**
+- **[refactoring-points.md](./archive/refactoring/refactoring-points.md)** 📦 アーカイブ済み
   - **目的**: リファクタリングポイントの記録
-  - **状態**: ✅ 一部実装完了
-  - **推奨**: 実装完了後にアーカイブ、またはGitHub Issuesに移行
+  - **状態**: ✅ 実装完了
+  - **場所**: `docs/archive/refactoring/`
 
-- **[morphological-refactoring-points.md](./morphological-refactoring-points.md)**
+- **[morphological-refactoring-points.md](./archive/refactoring/morphological-refactoring-points.md)** 📦 アーカイブ済み
   - **目的**: 形態素解析機能のリファクタリングポイント
-  - **状態**: ⚠️ 一部未実装
-  - **推奨**: 実装完了後にアーカイブ
+  - **状態**: ⚠️ 一部未実装（将来の参考として保持）
+  - **場所**: `docs/archive/refactoring/`
 
 ---
 
-## 📁 推奨ディレクトリ構造
+## 📁 現在のディレクトリ構造
 
 ```
 docs/
@@ -70,15 +70,16 @@ docs/
 ├── directory-structure.md          # 永続
 ├── python-vs-typescript-comparison.md  # 永続
 ├── typescript-review.md            # 永続
-└── archive/                       # アーカイブ用
+├── remaining-tasks.md             # 一時的（継続更新中）
+└── archive/                       # アーカイブ済み
+    ├── README.md
     ├── implementation/
-    │   ├── implementation-plan.md
-    │   └── morphological-analysis-feasibility.md
+    │   └── implementation-plan.md
     ├── refactoring/
     │   ├── refactoring-points.md
     │   └── morphological-refactoring-points.md
-    └── tasks/
-        └── remaining-tasks.md
+    └── research/
+        └── morphological-analysis-feasibility.md
 ```
 
 ---
@@ -139,20 +140,24 @@ docs/
 
 ---
 
-## 📌 次のアクション
+## 📌 完了したアクション
 
-1. **アーカイブディレクトリの作成**
-   ```bash
-   mkdir -p docs/archive/{implementation,refactoring,tasks}
-   ```
-
-2. **完了済み文書の移動**
+1. ✅ **アーカイブディレクトリの作成** - 完了
+2. ✅ **完了済み文書の移動** - 完了
    - `implementation-plan.md` → `docs/archive/implementation/`
-   - `morphological-analysis-feasibility.md` → `docs/archive/research/`（新規作成）
+   - `morphological-analysis-feasibility.md` → `docs/archive/research/`
+   - `refactoring-points.md` → `docs/archive/refactoring/`
+   - `morphological-refactoring-points.md` → `docs/archive/refactoring/`
 
-3. **タスク管理の移行検討**
+## 🔄 今後のアクション
+
+1. **タスク管理の移行検討**
    - `remaining-tasks.md` の内容をGitHub Issues/Projectsに移行
    - または、完了したタスクをアーカイブしてアクティブなタスクのみ保持
+
+2. **定期整理**
+   - 四半期ごとにドキュメントの見直し
+   - 参照頻度が低下した文書のアーカイブ
 
 ---
 
