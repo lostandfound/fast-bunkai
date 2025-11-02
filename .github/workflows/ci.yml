@@ -111,12 +111,32 @@ jobs:
           "@ | Out-File -FilePath "build/fast-bunkai.d.ts" -Encoding utf8
           Write-Host "✓ Build complete!"
 
-      - name: Verify build artifacts
+      - name: Verify build artifacts (Linux/macOS)
+        if: matrix.use-build-script == true
         working-directory: fast-bunkai-ts
         run: |
           echo "Checking build artifacts..."
           ls -la build/ || echo "No build directory"
           find build -name "*.node" || echo "No .node files found"
+
+      - name: Verify build artifacts (Windows)
+        if: matrix.use-build-script == false
+        working-directory: fast-bunkai-ts
+        shell: pwsh
+        run: |
+          Write-Host "Checking build artifacts..."
+          if (Test-Path "build") {
+            Get-ChildItem -Path build -Recurse | Format-Table
+            $nodeFiles = Get-ChildItem -Path build -Filter "*.node" -Recurse
+            if ($nodeFiles) {
+              Write-Host "Found .node files:"
+              $nodeFiles | ForEach-Object { Write-Host "  $($_.FullName)" }
+            } else {
+              Write-Host "No .node files found"
+            }
+          } else {
+            Write-Host "No build directory"
+          }
 
       - name: Run tests
         working-directory: fast-bunkai-ts
