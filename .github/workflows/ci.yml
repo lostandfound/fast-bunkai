@@ -81,7 +81,8 @@ jobs:
         working-directory: fast-bunkai-ts
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          npm run build
+          chmod +x build-manual.sh
+          bash build-manual.sh
 
       - name: Build native module (Windows)
         if: matrix.use-build-script == false
