@@ -124,11 +124,20 @@ console.log(eosIndices); // [2, 5, 8]
 
 ## 🧰 CLI Examples
 
-`fast-bunkai` provides the same pipe-friendly command-line interface as bunkai.
+`fast-bunkai` provides the same pipe-friendly command-line interface as bunkai for both Python and TypeScript versions.
+
+### Python版
 
 ```bash
 echo -e '宿を予約しました♪!▁まだ2ヶ月も先だけど。▁早すぎかな(笑)楽しみです★\n2文書目です。▁改行を含みます。' \
   | uvx fast-bunkai
+```
+
+### TypeScript/Node.js版
+
+```bash
+echo -e '宿を予約しました♪!▁まだ2ヶ月も先だけど。▁早すぎかな(笑)楽しみです★\n2文書目です。▁改行を含みます。' \
+  | node fast-bunkai-ts/bin/fast-bunkai.mjs
 ```
 
 Output (sentence boundaries marked with `│`, newlines preserved via `▁`):
@@ -138,10 +147,18 @@ Output (sentence boundaries marked with `│`, newlines preserved via `▁`):
 2文書目です。▁│改行を含みます。
 ```
 
-Morphological output is also available:
+### 形態素解析出力（`--ma`オプション）
+
+#### Python版
 
 ```bash
 echo -e '形態素解析し▁ます。結果を 表示します！' | uvx fast-bunkai --ma
+```
+
+#### TypeScript/Node.js版
+
+```bash
+echo -e '形態素解析し▁ます。結果を 表示します！' | node fast-bunkai-ts/bin/fast-bunkai.mjs --ma
 ```
 
 ```
