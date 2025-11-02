@@ -25,6 +25,9 @@ jobs:
 
       - name: Run tox
         run: uv run tox -e pytests,lint,typecheck,rust-fmt,rust-clippy
+        env:
+          # Ensure maturin builds the extension module correctly
+          MATURIN_PEP517_ARGS: ""
 
   # Rust単体テスト
   rust-tests:

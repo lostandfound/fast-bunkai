@@ -804,44 +804,6 @@ fn _fast_bunkai(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn face_mark_detection_matches_reference() {
-        let text = "顔文字(*^_^*)だよ。";
-        let view = TextView::new(text);
-        let spans = find_face_marks(&view);
-        assert_eq!(spans.len(), 1);
-        let span = &spans[0];
-        assert_eq!(span.start, 3);
-        assert_eq!(span.end, 10);
-        assert_eq!(span.split_value.as_deref(), Some("(*^_^*)"));
-    }
-
-    #[test]
-    fn indirect_quote_handles_question_particle_followed_by_to() {
-        let text = "スタッフ? と話し込み。";
-        let view = TextView::new(text);
-        let spans =
-            build_spans_from_regex(&view, "BasicRule", Some("BasicRule"), &BASIC_RULE_REGEX);
-        let target = spans
-            .iter()
-            .find(|span| span.start == 4 && span.end == 6)
-            .expect("expected basic rule span");
-        assert!(is_exception_particle(&view, target.start, target.end));
-    }
-
-    #[test]
-    fn segment_pipeline_matches_bunkai_for_staff_question_case() {
-        let text = "スタッフ? と話し込み。";
-        let output = segment_impl(text);
-        let final_bounds = output.final_boundaries;
-        assert_eq!(final_bounds, vec![12]);
-    }
-}
-
 // ============================================================================
 // Node-API bindings (napi-rs)
 // ============================================================================
@@ -857,6 +819,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// JavaScript uses UTF-16 code units for string indexing, so we need to convert
 /// the Unicode character indices (used internally) to UTF-16 indices for JS compatibility.
+#[cfg(feature = "node")]
 #[allow(dead_code)]
 fn to_utf16_indices(unicode_indices: &[usize], text: &str) -> Vec<u32> {
     // Build a mapping from Unicode character index to UTF-16 code unit index
@@ -980,4 +943,42 @@ pub fn segment(text: String) -> Result<String> {
     let result = pipeline_output_to_node(output, &text);
     serde_json::to_string(&result)
         .map_err(|e| Error::from_reason(format!("JSON serialization failed: {}", e)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn face_mark_detection_matches_reference() {
+        let text = "顔文字(*^_^*)だよ。";
+        let view = TextView::new(text);
+        let spans = find_face_marks(&view);
+        assert_eq!(spans.len(), 1);
+        let span = &spans[0];
+        assert_eq!(span.start, 3);
+        assert_eq!(span.end, 10);
+        assert_eq!(span.split_value.as_deref(), Some("(*^_^*)"));
+    }
+
+    #[test]
+    fn indirect_quote_handles_question_particle_followed_by_to() {
+        let text = "スタッフ? と話し込み。";
+        let view = TextView::new(text);
+        let spans =
+            build_spans_from_regex(&view, "BasicRule", Some("BasicRule"), &BASIC_RULE_REGEX);
+        let target = spans
+            .iter()
+            .find(|span| span.start == 4 && span.end == 6)
+            .expect("expected basic rule span");
+        assert!(is_exception_particle(&view, target.start, target.end));
+    }
+
+    #[test]
+    fn segment_pipeline_matches_bunkai_for_staff_question_case() {
+        let text = "スタッフ? と話し込み。";
+        let output = segment_impl(text);
+        let final_bounds = output.final_boundaries;
+        assert_eq!(final_bounds, vec![12]);
+    }
 }
