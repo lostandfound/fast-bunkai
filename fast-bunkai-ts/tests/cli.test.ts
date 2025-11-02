@@ -66,15 +66,14 @@ describe('CLI', () => {
   });
 
   it('should show version', () => {
-    const result = execSync(`node --loader ts-node/esm ${CLI_PATH} --version`, {
+    const result = execSync(`node ${BIN_PATH} --version`, {
       encoding: 'utf-8',
     });
     expect(result.trim()).toMatch(/fast-bunkai \d+\.\d+\.\d+/);
   });
 
   it('should show help', () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const result = execSync(`node --loader ts-node/esm ${CLI_PATH} --help`, {
+    const result = execSync(`node ${BIN_PATH} --help`, {
       encoding: 'utf-8',
     });
     expect(result).toContain('Usage:');
